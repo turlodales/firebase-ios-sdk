@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: check files
@@ -64,7 +64,7 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Access to Metrics Service
       run: |
         # Install gcloud sdk
@@ -111,8 +111,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -134,7 +134,7 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: ruby/setup-ruby@v1
     - name: Setup Bundler
       run: scripts/setup_bundler.sh
@@ -154,8 +154,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -177,8 +177,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -201,15 +201,17 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
     - name: Setup Bundler
       run: scripts/setup_bundler.sh
     - name: Build and test
-      run: ./scripts/health_metrics/pod_test_code_coverage_report.sh --sdk=FirebaseFirestore --platform=${{ matrix.target }}
+      run: |
+        export EXPERIMENTAL_MODE=true
+        ./scripts/health_metrics/pod_test_code_coverage_report.sh --sdk=FirebaseFirestore --platform=${{ matrix.target }}
     - uses: actions/upload-artifact@v2
       with:
         name: codecoverage
@@ -224,8 +226,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -247,8 +249,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -270,8 +272,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -293,8 +295,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -318,8 +320,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -341,8 +343,8 @@ jobs:
       matrix:
         target: [iOS]
     steps:
-    - uses: actions/checkout@v2
-    - uses: mikehardy/buildcache-action@50738c6c77de7f34e66b870e4f8ede333b69d077
+    - uses: actions/checkout@v4
+    - uses: mikehardy/buildcache-action@c87cea0ccd718971d6cc39e672c4f26815b6c126
       with:
         cache_key: ${{ matrix.os }}
     - uses: ruby/setup-ruby@v1
@@ -361,7 +363,7 @@ jobs:
     runs-on: macos-12
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Access to Metrics Service

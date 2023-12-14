@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import FirebaseFirestore
+#if SWIFT_PACKAGE
+  @_exported import FirebaseFirestoreInternalWrapper
+#else
+  @_exported import FirebaseFirestoreInternal
+#endif // SWIFT_PACKAGE
 import Foundation
 
 #if compiler(>=5.5.2) && canImport(_Concurrency)
@@ -25,6 +29,7 @@ import Foundation
     /// - Parameter data: A `Dictionary` containing the data for the new document.
     /// - Throws: `Error` if the backend rejected the write.
     /// - Returns: A `DocumentReference` pointing to the newly created document.
+    @discardableResult
     func addDocument(data: [String: Any]) async throws -> DocumentReference {
       return try await withCheckedThrowingContinuation { continuation in
         var document: DocumentReference?

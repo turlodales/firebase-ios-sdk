@@ -144,6 +144,11 @@ case "$project-$platform-$method" in
     bundle exec pod install --project-directory=FirebaseMessaging/Apps/SwiftUISample --repo-update
     ;;
 
+  MessagingSampleStandaloneWatchApp-*)
+    install_xcpretty
+    bundle exec pod install --project-directory=FirebaseMessaging/Apps/SampleStandaloneWatchApp --repo-update
+    ;;
+
   MLModelDownloaderSample-*)
     install_xcpretty
     bundle exec pod install --project-directory=FirebaseMLModelDownloader/Apps/Sample --repo-update
@@ -163,6 +168,11 @@ case "$project-$platform-$method" in
     install_xcpretty
     bundle exec pod install --project-directory=GoogleDataTransport/GDTWatchOSTestApp/ --repo-update
     bundle exec pod install --project-directory=GoogleDataTransport/GDTCCTWatchOSTestApp/
+    ;;
+
+  ClientApp-iOS-xcodebuild)
+    install_xcpretty
+    bundle exec pod install --project-directory=ClientApp/ --repo-update
     ;;
 
   *-pod-lib-lint)

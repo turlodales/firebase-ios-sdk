@@ -26,11 +26,12 @@ options=(
 )
 
 git grep "${options[@]}" -- \
+    ':(exclude)cmake/external/leveldb-1.22_windows_paths.patch' \
+    ':(exclude)cmake/external/leveldb-1.23_windows_paths.patch' \
     ':(exclude)cmake/external/nanopb.patch' \
     ':(exclude)cmake/external/snappy.patch' \
     ':(exclude)Crashlytics/ProtoSupport' \
     ':(exclude)Crashlytics/UnitTests/Data' \
-    ':(exclude)Firebase/CoreDiagnostics/ProtoSupport' \
     ':(exclude)CoreOnly/NOTICES' \
     ':(exclude)Firebase/Firebase/NOTICES' \
     ':(exclude)Firebase/InAppMessaging/ProtoSupport' \

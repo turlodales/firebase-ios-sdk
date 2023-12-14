@@ -39,12 +39,16 @@
 #include "Firestore/core/src/local/local_documents_view.h"
 #include "Firestore/core/src/local/local_serializer.h"
 #include "Firestore/core/src/local/local_store.h"
+#include "Firestore/core/src/local/memory_lru_reference_delegate.h"
 #include "Firestore/core/src/local/memory_persistence.h"
+#include "Firestore/core/src/local/proto_sizer.h"
 #include "Firestore/core/src/local/query_engine.h"
 #include "Firestore/core/src/local/query_result.h"
+#include "Firestore/core/src/model/aggregate_field.h"
 #include "Firestore/core/src/model/database_id.h"
 #include "Firestore/core/src/model/document.h"
 #include "Firestore/core/src/model/document_set.h"
+#include "Firestore/core/src/model/field_index.h"
 #include "Firestore/core/src/model/mutation.h"
 #include "Firestore/core/src/remote/connectivity_monitor.h"
 #include "Firestore/core/src/remote/datastore.h"
@@ -81,10 +85,13 @@ using local::LruParams;
 using local::MemoryPersistence;
 using local::QueryEngine;
 using local::QueryResult;
+using model::AggregateField;
 using model::Document;
 using model::DocumentKeySet;
 using model::DocumentMap;
+using model::FieldIndex;
 using model::Mutation;
+using model::ObjectValue;
 using model::OnlineState;
 using remote::ConnectivityMonitor;
 using remote::Datastore;
@@ -109,9 +116,9 @@ static const auto kInitialGCDelay = std::chrono::minutes(1);
 static const auto kRegularGCDelay = std::chrono::minutes(5);
 
 /** How long we wait to try running index backfill after SDK initialization. */
-static const auto kInitialBackfillDelay = std::chrono::milliseconds(15);
+static const auto kInitialBackfillDelay = std::chrono::seconds(15);
 /** Minimum amount of time between backfill checks, after the first one. */
-static const auto kRegularBackfillDelay = std::chrono::milliseconds(1);
+static const auto kRegularBackfillDelay = std::chrono::minutes(1);
 
 }  // namespace
 
@@ -213,6 +220,20 @@ void FirestoreClient::Initialize(const User& user, const Settings& settings) {
     lru_delegate_ = ldb->reference_delegate();
 
     persistence_ = std::move(ldb);
+    if (settings.gc_enabled()) {
+      ScheduleLruGarbageCollection();
+    }
+  } else if (settings.gc_enabled()) {
+    local::LocalSerializer local_serializer(
+        Serializer(database_info_.database_id()));
+    auto sizer =
+        absl::make_unique<local::ProtoSizer>(std::move(local_serializer));
+    persistence_ = MemoryPersistence::WithLruGarbageCollector(
+        LruParams::WithCacheSize(settings.cache_size_bytes()),
+        std::move(sizer));
+    lru_delegate_ = static_cast<local::MemoryLruReferenceDelegate*>(
+        persistence_->reference_delegate());
+
     if (settings.gc_enabled()) {
       ScheduleLruGarbageCollection();
     }
@@ -384,7 +405,7 @@ void FirestoreClient::WaitForPendingWrites(StatusCallback callback) {
   });
 }
 
-void FirestoreClient::VerifyNotTerminated() {
+void FirestoreClient::VerifyNotTerminated() const {
   if (is_terminated()) {
     ThrowIllegalState("The client has already been terminated.");
   }
@@ -534,6 +555,26 @@ void FirestoreClient::Transaction(int max_attempts,
   });
 }
 
+void FirestoreClient::RunAggregateQuery(
+    const Query& query,
+    const std::vector<AggregateField>& aggregates,
+    api::AggregateQueryCallback&& result_callback) {
+  VerifyNotTerminated();
+
+  // Dispatch the result back onto the user dispatch queue.
+  auto async_callback = [this,
+                         result_callback](const StatusOr<ObjectValue>& status) {
+    if (result_callback) {
+      user_executor_->Execute([=] { result_callback(std::move(status)); });
+    }
+  };
+
+  worker_queue_->Enqueue([this, query, aggregates, async_callback] {
+    sync_engine_->RunAggregateQuery(query, aggregates,
+                                    std::move(async_callback));
+  });
+}
+
 void FirestoreClient::AddSnapshotsInSyncListener(
     const std::shared_ptr<EventListener<Empty>>& user_listener) {
   worker_queue_->Enqueue([this, user_listener] {
@@ -546,6 +587,26 @@ void FirestoreClient::RemoveSnapshotsInSyncListener(
   worker_queue_->Enqueue([this, user_listener] {
     event_manager_->RemoveSnapshotsInSyncListener(user_listener);
   });
+}
+
+void FirestoreClient::ConfigureFieldIndexes(
+    std::vector<FieldIndex> parsed_indexes) {
+  VerifyNotTerminated();
+  worker_queue_->Enqueue([this, parsed_indexes] {
+    local_store_->ConfigureFieldIndexes(std::move(parsed_indexes));
+  });
+}
+
+void FirestoreClient::SetIndexAutoCreationEnabled(bool is_enabled) const {
+  VerifyNotTerminated();
+  worker_queue_->Enqueue([this, is_enabled] {
+    local_store_->SetIndexAutoCreationEnabled(is_enabled);
+  });
+}
+
+void FirestoreClient::DeleteAllFieldIndexes() {
+  VerifyNotTerminated();
+  worker_queue_->Enqueue([this] { local_store_->DeleteAllFieldIndexes(); });
 }
 
 void FirestoreClient::LoadBundle(

@@ -47,6 +47,10 @@ class LocalStore;
 class TargetData;
 }  // namespace local
 
+namespace model {
+class AggregateField;
+}  // namespace model
+
 namespace core {
 
 class SyncEngineCallback;
@@ -138,6 +142,13 @@ class SyncEngine : public remote::RemoteStoreCallback, public QueryEventSource {
                    core::TransactionUpdateCallback update_callback,
                    core::TransactionResultCallback result_callback);
 
+  /**
+   * Executes an aggregation query.
+   */
+  void RunAggregateQuery(const core::Query& query,
+                         const std::vector<model::AggregateField>& aggregates,
+                         api::AggregateQueryCallback&& result_callback);
+
   void HandleCredentialChange(const credentials::User& user);
 
   // Implements `RemoteStoreCallback`
@@ -227,8 +238,10 @@ class SyncEngine : public remote::RemoteStoreCallback, public QueryEventSource {
 
   void AssertCallbackExists(absl::string_view source);
 
-  ViewSnapshot InitializeViewAndComputeSnapshot(const Query& query,
-                                                model::TargetId target_id);
+  ViewSnapshot InitializeViewAndComputeSnapshot(
+      const Query& query,
+      model::TargetId target_id,
+      nanopb::ByteString resume_token);
 
   void RemoveAndCleanupTarget(model::TargetId target_id, util::Status status);
 

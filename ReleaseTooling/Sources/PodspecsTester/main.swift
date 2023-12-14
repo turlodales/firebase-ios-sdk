@@ -63,7 +63,7 @@ struct PodspecsTester: ParsableCommand {
       }
     }.joined(separator: " ")
     let command =
-      "pod spec lint \(spec) \(arguments) --sources=https://github.com/firebase/SpecsTesting,https://cdn.cocoapods.org/"
+      "pod spec lint \(spec) \(arguments) --sources=https://github.com/firebase/SpecsTesting,https://github.com/firebase/SpecsStaging.git,https://cdn.cocoapods.org/"
     print(command)
     let result = Shell.executeCommandFromScript(
       command,
@@ -104,7 +104,7 @@ struct PodspecsTester: ParsableCommand {
     InitializeSpecTesting.setupRepo(sdkRepoURL: gitRoot)
     let manifest = FirebaseManifest.shared
     var minutes = 0
-    var timer: DispatchSourceTimer = {
+    let timer: DispatchSourceTimer = {
       let t = DispatchSource.makeTimerSource()
       t.schedule(deadline: .now(), repeating: 60)
       t.setEventHandler(handler: {

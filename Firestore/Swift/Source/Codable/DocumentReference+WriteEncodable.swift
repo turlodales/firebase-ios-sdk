@@ -15,7 +15,11 @@
  */
 
 import Foundation
-import FirebaseFirestore
+#if SWIFT_PACKAGE
+  @_exported import FirebaseFirestoreInternalWrapper
+#else
+  @_exported import FirebaseFirestoreInternal
+#endif // SWIFT_PACKAGE
 
 public extension DocumentReference {
   /// Encodes an instance of `Encodable` and overwrites the encoded data
@@ -34,7 +38,8 @@ public extension DocumentReference {
   func setData<T: Encodable>(from value: T,
                              encoder: Firestore.Encoder = Firestore.Encoder(),
                              completion: ((Error?) -> Void)? = nil) throws {
-    setData(try encoder.encode(value), completion: completion)
+    let encoded = try encoder.encode(value)
+    setData(encoded, completion: completion)
   }
 
   /// Encodes an instance of `Encodable` and overwrites the encoded data
@@ -57,7 +62,8 @@ public extension DocumentReference {
                              merge: Bool,
                              encoder: Firestore.Encoder = Firestore.Encoder(),
                              completion: ((Error?) -> Void)? = nil) throws {
-    setData(try encoder.encode(value), merge: merge, completion: completion)
+    let encoded = try encoder.encode(value)
+    setData(encoded, merge: merge, completion: completion)
   }
 
   /// Encodes an instance of `Encodable` and writes the encoded data to the document referred
@@ -84,6 +90,7 @@ public extension DocumentReference {
                              mergeFields: [Any],
                              encoder: Firestore.Encoder = Firestore.Encoder(),
                              completion: ((Error?) -> Void)? = nil) throws {
-    setData(try encoder.encode(value), mergeFields: mergeFields, completion: completion)
+    let encoded = try encoder.encode(value)
+    setData(encoded, mergeFields: mergeFields, completion: completion)
   }
 }

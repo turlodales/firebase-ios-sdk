@@ -24,6 +24,7 @@ import XCTest
 class APITestBase: XCTestCase {
   static var useFakeConfig: Bool!
   static var mockedFetch: Bool!
+  static var mockedRealtime: Bool!
   var app: FirebaseApp!
   var config: RemoteConfig!
   var console: RemoteConfigConsole!
@@ -42,6 +43,7 @@ class APITestBase: XCTestCase {
         options.projectID = "Fake Project"
         FirebaseApp.configure(options: options)
         APITests.mockedFetch = false
+        APITests.mockedRealtime = false
       #endif
     }
   }
@@ -60,11 +62,27 @@ class APITestBase: XCTestCase {
     guard let jsonValue = String(data: jsonData, encoding: .ascii) else {
       fatalError("Failed to make json Value from jsonData")
     }
+    let arrayjsonData = try JSONSerialization.data(
+      withJSONObject: Constants.arrayValue
+    )
+    guard let arrayJsonValue = String(data: arrayjsonData, encoding: .ascii) else {
+      fatalError("Failed to make json Value from jsonData")
+    }
+    let dictJsonData = try JSONSerialization.data(
+      withJSONObject: Constants.dictValue
+    )
+    guard let dictJsonValue = String(data: dictJsonData, encoding: .ascii) else {
+      fatalError("Failed to make json Value from jsonData")
+    }
 
     if APITests.useFakeConfig {
       if !APITests.mockedFetch {
         APITests.mockedFetch = true
         config.configFetch = FetchMocks.mockFetch(config.configFetch)
+      }
+      if !APITests.mockedRealtime {
+        APITests.mockedRealtime = true
+        config.configRealtime = RealtimeMocks.mockRealtime(config.configRealtime)
       }
       fakeConsole = FakeConsole()
       config.configFetch.fetchSession = URLSessionMock(with: fakeConsole)
@@ -78,7 +96,9 @@ class APITestBase: XCTestCase {
                             Constants.decimalKey: "\(Constants.decimalValue)",
                             Constants.trueKey: String(true),
                             Constants.falseKey: String(false),
-                            Constants.dataKey: String(decoding: Constants.dataValue, as: UTF8.self)]
+                            Constants.dataKey: String(decoding: Constants.dataValue, as: UTF8.self),
+                            Constants.arrayKey: arrayJsonValue,
+                            Constants.dictKey: dictJsonValue]
     } else {
       console = RemoteConfigConsole()
       console.updateRemoteConfigValue(Constants.obiwan, forKey: Constants.jedi)

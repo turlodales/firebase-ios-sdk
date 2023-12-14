@@ -99,9 +99,9 @@
 
     #if canImport(FirebaseFirestoreSwift)
 
-      /// Encodes an instance of `Encodable` and overwrites the encoded data to the document referred
-      ///  by this `DocumentReference`. If no document exists, it is created. If a document already
-      ///  exists, it is overwritten.
+      /// Encodes an instance of `Encodable` and overwrites the encoded data to the document
+      ///  referred by this `DocumentReference`. If no document exists, it is created. If a
+      ///  document already exists, it is overwritten.
       ///
       /// - Parameters:
       ///   - value: An instance of `Encodable` to be encoded to a document.
@@ -116,7 +116,7 @@
       > {
         Future { promise in
           do {
-            try self.setData(from: value) { error in
+            try self.setData(from: value, encoder: encoder) { error in
               if let error = error {
                 promise(.failure(error))
               } else {
@@ -129,9 +129,11 @@
         }
       }
 
-      /// Encodes an instance of `Encodable` and overwrites the encoded data to the document referred
+      /// Encodes an instance of `Encodable` and overwrites the encoded data to the document
+      /// referred
       ///  by this `DocumentReference`. If no document exists, it is created. If a document already
-      ///  exists, it is overwritten. If you pass `merge: true`, the provided Encodable will be merged
+      ///  exists, it is overwritten. If you pass `merge: true`, the provided Encodable will be
+      /// merged
       ///   into any existing document.
       ///
       /// - Parameters:
@@ -148,7 +150,7 @@
       > {
         Future { promise in
           do {
-            try self.setData(from: value, merge: merge) { error in
+            try self.setData(from: value, merge: merge, encoder: encoder) { error in
               if let error = error {
                 promise(.failure(error))
               } else {
@@ -162,7 +164,8 @@
       }
 
       /// Encodes an instance of `Encodable` and writes the encoded data to the document referred by
-      /// this `DocumentReference` by only replacing the fields specified under mergeFields. Any field
+      /// this `DocumentReference` by only replacing the fields specified under mergeFields. Any
+      /// field
       /// that is not specified in mergeFields is ignored and remains untouched. If the document
       /// doesn’t yet exist, this method creates it and then sets the data.
       ///
@@ -182,7 +185,7 @@
       > {
         Future { promise in
           do {
-            try self.setData(from: value, mergeFields: mergeFields) { error in
+            try self.setData(from: value, mergeFields: mergeFields, encoder: encoder) { error in
               if let error = error {
                 promise(.failure(error))
               } else {

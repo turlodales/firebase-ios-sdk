@@ -16,11 +16,12 @@
 
 #import "Firestore/Source/API/FSTFirestoreComponent.h"
 
+#import <FirebaseAppCheckInterop/FirebaseAppCheckInterop.h>
+
 #include <memory>
 #include <string>
 #include <utility>
 
-#import "FirebaseAppCheck/Interop/FIRAppCheckInterop.h"
 #import "FirebaseAuth/Interop/FIRAuthInterop.h"
 #import "FirebaseCore/Extension/FIRAppInternal.h"
 #import "FirebaseCore/Extension/FIRComponent.h"
@@ -175,5 +176,10 @@ NS_ASSUME_NONNULL_BEGIN
 }
 
 @end
+
+/// This function forces the linker to include `FSTFirestoreComponent`. See `+[FIRFirestore
+/// notCalled]`.
+void FSTIncludeFSTFirestoreComponent(void) {
+}
 
 NS_ASSUME_NONNULL_END

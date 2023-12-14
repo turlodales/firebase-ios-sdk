@@ -23,16 +23,7 @@ import SharedTestUtilities
 
 import XCTest
 
-class StorageComponentTests: XCTestCase {
-  static var app: FirebaseApp!
-
-  override class func setUp() {
-    let options = FirebaseOptions(googleAppID: "0:0000000000000:ios:0000000000000000",
-                                  gcmSenderID: "00000000000000000-00000000000-000000000")
-    options.projectID = "myProjectID"
-    app = FirebaseApp(instanceWithName: "test", options: options)
-  }
-
+class StorageComponentTests: StorageTestHelpers {
   // MARK: Interoperability Tests
 
   /// Tests that the right number of components are being provided for the container.
@@ -43,7 +34,8 @@ class StorageComponentTests: XCTestCase {
 
   /// Tests that a Storage instance can be created properly by the StorageComponent.
   func testStorageInstanceCreation() throws {
-    let component = StorageComponent(app: StorageComponentTests.app)
+    let app = try XCTUnwrap(StorageComponentTests.app)
+    let component = StorageComponent(app: app)
     let storage = component.storage(for: "someBucket")
     XCTAssertNotNil(storage)
   }
@@ -52,7 +44,7 @@ class StorageComponentTests: XCTestCase {
   func testMultipleComponentInstancesCreated() throws {
     let registrants = NSMutableSet(array: [StorageComponent.self])
     let container = FirebaseComponentContainer(
-      app: StorageComponentTests.app,
+      app: StorageTestHelpers.app,
       registrants: registrants
     )
 
@@ -70,11 +62,9 @@ class StorageComponentTests: XCTestCase {
 
   /// Tests that instances of Storage created are different.
   func testMultipleStorageInstancesCreated() throws {
+    let app = try XCTUnwrap(StorageComponentTests.app)
     let registrants = NSMutableSet(array: [StorageComponent.self])
-    let container = FirebaseComponentContainer(
-      app: StorageComponentTests.app,
-      registrants: registrants
-    )
+    let container = FirebaseComponentContainer(app: app, registrants: registrants)
 
     let provider = ComponentType<StorageProvider>.instance(for: StorageProvider.self,
                                                            in: container)
@@ -91,5 +81,23 @@ class StorageComponentTests: XCTestCase {
     XCTAssertNotNil(storage3)
 
     XCTAssert(storage1 !== storage3)
+  }
+
+  /// Test that Storage instances get deallocated.
+  func testStorageLifecycle() throws {
+    weak var weakApp: FirebaseApp?
+    weak var weakStorage: Storage?
+    try autoreleasepool {
+      let options = FirebaseOptions(googleAppID: "0:0000000000000:ios:0000000000000000",
+                                    gcmSenderID: "00000000000000000-00000000000-000000000")
+      options.projectID = "myProjectID"
+      let app1 = FirebaseApp(instanceWithName: "transitory app", options: options)
+      weakApp = try XCTUnwrap(app1)
+      let storage = Storage(app: app1, bucket: "transitory bucket")
+      weakStorage = storage
+      XCTAssertNotNil(weakStorage)
+    }
+    XCTAssertNil(weakApp)
+    XCTAssertNil(weakStorage)
   }
 }

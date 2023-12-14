@@ -17,7 +17,6 @@
 #include "Firestore/core/src/core/field_filter.h"
 
 #include <utility>
-#include <vector>
 
 #include "Firestore/core/src/core/array_contains_any_filter.h"
 #include "Firestore/core/src/core/array_contains_filter.h"
@@ -123,6 +122,20 @@ FieldFilter::FieldFilter(std::shared_ptr<const Filter::Rep> rep)
     : Filter(std::move(rep)) {
 }
 
+const std::vector<FieldFilter>& FieldFilter::Rep::GetFlattenedFilters() const {
+  // This is already a field filter, so we return a vector of size one.
+  return memoized_flattened_filters_->memoize([&]() {
+    return std::vector<FieldFilter>{
+        FieldFilter(std::make_shared<const Rep>(*this))};
+  });
+}
+
+std::vector<Filter> FieldFilter::Rep::GetFilters() const {
+  // This is the only filter within this object, so we return a list of size
+  // one.
+  return std::vector<Filter>{FieldFilter(std::make_shared<const Rep>(*this))};
+}
+
 FieldFilter::Rep::Rep(FieldPath field,
                       Operator op,
                       SharedMessage<google_firestore_v1_Value> value_rhs)
@@ -178,13 +191,7 @@ std::string FieldFilter::Rep::CanonicalId() const {
 }
 
 std::string FieldFilter::Rep::ToString() const {
-  return util::StringFormat("%s %s %s", field_.CanonicalString(),
-                            CanonicalName(op_),
-                            model::CanonicalId(*value_rhs_));
-}
-
-size_t FieldFilter::Rep::Hash() const {
-  return util::Hash(field_, op_, model::CanonicalId(*value_rhs_));
+  return CanonicalId();
 }
 
 bool FieldFilter::Rep::Equals(const Filter::Rep& other) const {

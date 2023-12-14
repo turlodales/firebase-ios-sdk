@@ -16,7 +16,7 @@
 
 #import <XCTest/XCTest.h>
 
-@import HeartbeatLoggingTestUtils;
+@import FirebaseCoreInternal;
 
 #import "FirebaseAuth/Sources/Backend/FIRAuthBackend.h"
 #import "FirebaseAuth/Sources/Backend/FIRAuthRPCRequest.h"
@@ -24,6 +24,8 @@
 #import "FirebaseAuth/Sources/Backend/FIRAuthRequestConfiguration.h"
 #import "FirebaseAuth/Sources/Utilities/FIRAuthErrorUtils.h"
 #import "FirebaseAuth/Sources/Utilities/FIRAuthInternalErrors.h"
+#import "FirebaseAuth/Tests/Unit/FIRApp+FIRAuthUnitTests.h"
+#import "FirebaseAuth/Tests/Unit/FIRFakeAppCheck.h"
 #import "FirebaseAuth/Tests/Unit/FIRFakeBackendRPCIssuer.h"
 
 #import "FirebaseCore/Extension/FirebaseCoreInternal.h"
@@ -122,7 +124,7 @@ static NSString *const kTestValue = @"TestValue";
  */
 @interface FIRAuthBackendRPCImplementation : NSObject <FIRAuthBackendImplementation>
 
-/** @fn postWithRequest:response:callback:
+/** @fn callWithRequest:response:callback:
     @brief Calls the RPC using HTTP POST.
     @remarks Possible error responses:
         @see FIRAuthInternalErrorCodeRPCRequestEncodingError
@@ -135,7 +137,7 @@ static NSString *const kTestValue = @"TestValue";
     @param response The empty response to be filled.
     @param callback The callback for both success and failure.
  */
-- (void)postWithRequest:(id<FIRAuthRPCRequest>)request
+- (void)callWithRequest:(id<FIRAuthRPCRequest>)request
                response:(id<FIRAuthRPCResponse>)response
                callback:(void (^)(NSError *error))callback;
 
@@ -147,7 +149,7 @@ static NSString *const kTestValue = @"TestValue";
 @interface FIRFakeHeartbeatLogger : NSObject <FIRHeartbeatLoggerProtocol>
 @property(nonatomic, copy, nullable) FIRHeartbeatsPayload * (^onFlushHeartbeatsIntoPayloadHandler)
     (void);
-@property(nonatomic, copy, nullable) FIRHeartbeatInfoCode (^onHeartbeatCodeForTodayHandler)(void);
+@property(nonatomic, copy, nullable) FIRDailyHeartbeatCode (^onHeartbeatCodeForTodayHandler)(void);
 @end
 
 @implementation FIRFakeHeartbeatLogger
@@ -160,12 +162,12 @@ static NSString *const kTestValue = @"TestValue";
   }
 }
 
-- (FIRHeartbeatInfoCode)heartbeatCodeForToday {
+- (FIRDailyHeartbeatCode)heartbeatCodeForToday {
   // This API should not be used by the below tests because the Auth
   // SDK uses only the V2 heartbeat API (`flushHeartbeatsIntoPayload`) for
   // getting heartbeats.
   [self doesNotRecognizeSelector:_cmd];
-  return FIRHeartbeatInfoCodeNone;
+  return FIRDailyHeartbeatCodeNone;
 }
 
 - (void)log {
@@ -385,7 +387,7 @@ static NSString *const kTestValue = @"TestValue";
 
 /** @class FIRAuthBackendRPCImplementationTests
     @brief This set of unit tests is designed primarily to test the possible outcomes of the
-        @c FIRAuthBackendRPCImplementation.postWithRequest:response:callback: method.
+        @c FIRAuthBackendRPCImplementation.callWithRequest:response:callback: method.
  */
 @interface FIRAuthBackendRPCImplementationTests : XCTestCase
 @end
@@ -417,17 +419,22 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testRequest_IncludesHeartbeatPayload_WhenHeartbeatsNeedSending
-    @brief This test checks the behavior of @c postWithRequest:response:callback:
+    @brief This test checks the behavior of @c callWithRequest:response:callback:
         to verify that a heartbeats payload is attached as a header to an
         outgoing request when there are stored heartbeats that need sending.
  */
 - (void)testRequest_IncludesHeartbeatPayload_WhenHeartbeatsNeedSending {
   // Given
   FIRFakeHeartbeatLogger *fakeHeartbeatLogger = [[FIRFakeHeartbeatLogger alloc] init];
+  FIRFakeAppCheck *fakeAppCheck = [[FIRFakeAppCheck alloc] init];
+  FIRApp *app = [FIRApp appForAuthUnitTestsWithName:@"app"];
+  FIRAuth *auth = [FIRAuth authWithApp:app];
   FIRAuthRequestConfiguration *requestConfiguration =
       [[FIRAuthRequestConfiguration alloc] initWithAPIKey:kFakeAPIkey
                                                     appID:kFakeFirebaseAppID
-                                          heartbeatLogger:fakeHeartbeatLogger];
+                                                     auth:auth
+                                          heartbeatLogger:fakeHeartbeatLogger
+                                                 appCheck:fakeAppCheck];
   FIRFakeRequest *request =
       [FIRFakeRequest fakeRequestWithRequestConfiguration:requestConfiguration];
   FIRFakeResponse *response = [FIRFakeResponse fakeResponse];
@@ -442,7 +449,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -455,18 +462,58 @@ static NSString *const kTestValue = @"TestValue";
                         expectedHeader);
 }
 
-/** @fn testRequest_DoesNotIncludeAHeartbeatPayload_WhenNoHeartbeatsNeedSending
+/** @fn testRequest_IncludesAppCheckHeader
     @brief This test checks the behavior of @c postWithRequest:response:callback:
+        to verify that a appCheck token is attached as a header to an
+        outgoing request.
+ */
+- (void)testRequest_IncludesAppCheckHeader {
+  // Given
+  FIRFakeHeartbeatLogger *fakeHeartbeatLogger = [[FIRFakeHeartbeatLogger alloc] init];
+  FIRFakeAppCheck *fakeAppCheck = [[FIRFakeAppCheck alloc] init];
+  FIRApp *app = [FIRApp appForAuthUnitTestsWithName:@"app"];
+  FIRAuth *auth = [FIRAuth authWithApp:app];
+  FIRAuthRequestConfiguration *requestConfiguration =
+      [[FIRAuthRequestConfiguration alloc] initWithAPIKey:kFakeAPIkey
+                                                    appID:kFakeFirebaseAppID
+                                                     auth:auth
+                                          heartbeatLogger:fakeHeartbeatLogger
+                                                 appCheck:fakeAppCheck];
+  FIRFakeRequest *request =
+      [FIRFakeRequest fakeRequestWithRequestConfiguration:requestConfiguration];
+  FIRFakeResponse *response = [FIRFakeResponse fakeResponse];
+
+  __block NSError *callbackError;
+  __block BOOL callbackInvoked;
+  [_RPCImplementation callWithRequest:request
+                             response:response
+                             callback:^(NSError *error) {
+                               callbackInvoked = YES;
+                               callbackError = error;
+                             }];
+
+  // Then
+  XCTAssertEqualObjects([_RPCIssuer.completeRequest valueForHTTPHeaderField:@"X-Firebase-AppCheck"],
+                        kFakeAppCheckToken);
+}
+
+/** @fn testRequest_DoesNotIncludeAHeartbeatPayload_WhenNoHeartbeatsNeedSending
+    @brief This test checks the behavior of @c callWithRequest:response:callback:
         to verify that a request header does not contain heartbeat data in the
         case that there are no stored heartbeats that need sending.
  */
 - (void)testRequest_DoesNotIncludeAHeartbeatPayload_WhenNoHeartbeatsNeedSending {
   // Given
   FIRFakeHeartbeatLogger *fakeHeartbeatLogger = [[FIRFakeHeartbeatLogger alloc] init];
+  FIRFakeAppCheck *fakeAppCheck = [[FIRFakeAppCheck alloc] init];
+  FIRApp *app = [FIRApp appForAuthUnitTestsWithName:@"app"];
+  FIRAuth *auth = [FIRAuth authWithApp:app];
   FIRAuthRequestConfiguration *requestConfiguration =
       [[FIRAuthRequestConfiguration alloc] initWithAPIKey:kFakeAPIkey
                                                     appID:kFakeFirebaseAppID
-                                          heartbeatLogger:fakeHeartbeatLogger];
+                                                     auth:auth
+                                          heartbeatLogger:fakeHeartbeatLogger
+                                                 appCheck:fakeAppCheck];
   FIRFakeRequest *request =
       [FIRFakeRequest fakeRequestWithRequestConfiguration:requestConfiguration];
   FIRFakeResponse *response = [FIRFakeResponse fakeResponse];
@@ -481,7 +528,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -493,7 +540,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testRequestEncodingError
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         request passed returns an error during it's unencodedHTTPRequestBodyWithError: method.
         The error returned should be delivered to the caller without any change.
  */
@@ -506,7 +553,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -540,7 +587,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testBodyDataSerializationError
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         request returns an object which isn't serializable by @c NSJSONSerialization.
         The error from @c NSJSONSerialization should be returned as the underlyingError for an
         @c NSError with the code @c FIRAuthErrorCodeJSONSerializationError.
@@ -551,7 +598,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -592,7 +639,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -628,7 +675,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testUnparsableErrorResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         response isn't deserializable by @c NSJSONSerialization and an error
         condition (with an associated error response message) was expected. We are expecting to
         receive the original network error wrapped in an @c NSError with the code
@@ -640,7 +687,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -677,7 +724,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testUnparsableSuccessResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         response isn't deserializable by @c NSJSONSerialization and no error
         condition was indicated. We are expecting to
         receive the @c NSJSONSerialization error wrapped in an @c NSError with the code
@@ -689,7 +736,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -723,7 +770,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testNonDictionaryErrorResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         response deserialized by @c NSJSONSerialization is not a dictionary, and an error was
         expected. We are expecting to receive the original network error wrapped in an @c NSError
         with the code @c FIRAuthInternalErrorCodeUnexpectedErrorResponse with the decoded response
@@ -736,7 +783,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -776,7 +823,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testNonDictionarySuccessResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         response deserialized by @c NSJSONSerialization is not a dictionary, and no error was
         expected. We are expecting to receive an @c NSError with the code
         @c FIRAuthErrorCodeUnexpectedServerResponse with the decoded response in the
@@ -789,7 +836,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -826,7 +873,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testCaptchaRequiredResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         we get an error message indicating captcha is required. The backend should not be returning
         this error to mobile clients. If it does, we should wrap it in an @c NSError with the code
         @c FIRAuthInternalErrorCodeUnexpectedErrorResponse with the decoded error message in the
@@ -839,7 +886,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -875,7 +922,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testCaptchaCheckFailedResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         we get an error message indicating captcha check failed. The backend should not be returning
         this error to mobile clients. If it does, we should wrap it in an @c NSError with the code
         @c FIRAuthErrorCodeUnexpectedServerResponse with the decoded error message in the
@@ -888,7 +935,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -906,7 +953,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testCaptchaRequiredInvalidPasswordResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         we get an error message indicating captcha is required and an invalid password was entered.
         The backend should not be returning this error to mobile clients. If it does, we should wrap
         it in an @c NSError with the code
@@ -920,7 +967,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -957,7 +1004,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testDecodableErrorResponseWithUnknownMessage
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         response deserialized by @c NSJSONSerialization represents a valid error response (and an
         error was indicated) but we didn't receive an error message we know about. We are expecting
         to receive the original network error wrapped in an @c NSError with the code
@@ -971,7 +1018,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -1009,7 +1056,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testErrorResponseWithNoErrorMessage
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         response deserialized by @c NSJSONSerialization is a dictionary, and an error was indicated,
         but no error information was present in the decoded response. We are expecting to receive
         the original network error wrapped in an @c NSError with the code
@@ -1023,7 +1070,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -1058,7 +1105,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testClientErrorResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         response contains a client error specified by an error messsage sent from the backend.
  */
 - (void)testClientErrorResponse {
@@ -1067,7 +1114,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackerror;
   __block BOOL callBackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callBackInvoked = YES;
@@ -1086,7 +1133,7 @@ static NSString *const kTestValue = @"TestValue";
 }
 
 /** @fn testUndecodableSuccessResponse
-    @brief This test checks the behaviour of @c postWithRequest:response:callback: when the
+    @brief This test checks the behaviour of @c callWithRequest:response:callback: when the
         response isn't decodable by the response class but no error condition was expected. We are
         expecting to receive an @c NSError with the code
         @c FIRAuthErrorCodeUnexpectedServerResponse and the error from @c setWithDictionary:error:
@@ -1098,7 +1145,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;
@@ -1138,7 +1185,7 @@ static NSString *const kTestValue = @"TestValue";
 
   __block NSError *callbackError;
   __block BOOL callbackInvoked;
-  [_RPCImplementation postWithRequest:request
+  [_RPCImplementation callWithRequest:request
                              response:response
                              callback:^(NSError *error) {
                                callbackInvoked = YES;

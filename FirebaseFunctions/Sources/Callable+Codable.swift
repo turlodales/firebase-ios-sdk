@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import Foundation
 import FirebaseSharedSwift
+import Foundation
 
 // A `Callable` is reference to a particular Callable HTTPS trigger in Cloud Functions.
 public struct Callable<Request: Encodable, Response: Decodable> {
@@ -49,7 +49,8 @@ public struct Callable<Request: Encodable, Response: Decodable> {
   /// FCM token to identify the app instance. If a user is logged in with Firebase
   /// Auth, an auth ID token for the user is also automatically included.
   ///
-  /// Firebase Cloud Messaging sends data to the Firebase backend periodically to collect information
+  /// Firebase Cloud Messaging sends data to the Firebase backend periodically to collect
+  /// information
   /// regarding the app instance. To stop this, see `Messaging.deleteData()`. It
   /// resumes with a new FCM Token the next time you call this method.
   ///
@@ -93,7 +94,8 @@ public struct Callable<Request: Encodable, Response: Decodable> {
   /// ```
   /// You can also call a HTTPS Callable function using the following syntax:
   /// ```swift
-  ///     let greeter: Callable<GreetingRequest, GreetingResponse> = functions.httpsCallable("greeter")
+  ///     let greeter: Callable<GreetingRequest, GreetingResponse> =
+  /// functions.httpsCallable("greeter")
   ///     greeter(data) { result in
   ///       print(result.greeting)
   ///     }
@@ -116,23 +118,19 @@ public struct Callable<Request: Encodable, Response: Decodable> {
     /// FCM token to identify the app instance. If a user is logged in with Firebase
     /// Auth, an auth ID token for the user is also automatically included.
     ///
-    /// Firebase Cloud Messaging sends data to the Firebase backend periodically to collect information
+    /// Firebase Cloud Messaging sends data to the Firebase backend periodically to collect
+    /// information
     /// regarding the app instance. To stop this, see `Messaging.deleteData()`. It
     /// resumes with a new FCM Token the next time you call this method.
     ///
     /// - Parameter data: The `Request` representing the data to pass to the trigger.
-    /// - Parameter encoder: The encoder instance to use to run the encoding.
-    /// - Parameter decoder: The decoder instance to use to run the decoding.
     ///
     /// - Throws: An error if any value throws an error during encoding or decoding.
     /// - Throws: An error if the callable fails to complete
     ///
     /// - Returns: The decoded `Response` value
     @available(iOS 13, tvOS 13, macOS 10.15, macCatalyst 13, watchOS 7, *)
-    public func call(_ data: Request,
-                     encoder: FirebaseDataEncoder = FirebaseDataEncoder(),
-                     decoder: FirebaseDataDecoder =
-                       FirebaseDataDecoder()) async throws -> Response {
+    public func call(_ data: Request) async throws -> Response {
       let encoded = try encoder.encode(data)
       let result = try await callable.call(encoded)
       return try decoder.decode(Response.self, from: result.data)
@@ -150,7 +148,8 @@ public struct Callable<Request: Encodable, Response: Decodable> {
     /// ```
     /// You can also call a HTTPS Callable function using the following syntax:
     /// ```swift
-    ///     let greeter: Callable<GreetingRequest, GreetingResponse> = functions.httpsCallable("greeter")
+    ///     let greeter: Callable<GreetingRequest, GreetingResponse> =
+    /// functions.httpsCallable("greeter")
     ///     let result = try await greeter(data)
     ///     print(result.greeting)
     /// ```

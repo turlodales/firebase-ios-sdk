@@ -1,3 +1,16 @@
+# 10.17.0
+- [feature] The `FirebaseDatabase` module now contains Firebase Database's
+  Swift-only APIs that were previously only available via the
+  `FirebaseDatabaseSwift` extension SDK. See the
+  `FirebaseDatabaseSwift` release note from this release for more details.
+
+# 10.0.0
+- [deprecated] Deprecated `FirebaseDatabase` on watchOS 9 and above.
+  watchOS users should instead use the Database REST API directly (#19272).
+
+# 9.6.0
+- [fixed] Fix priority inversion issue exposed by Xcode 14. (#10130)
+
 # 9.3.0
 - [fixed] Fix `reference(withPath:)` race condition crash. (#7885)
 

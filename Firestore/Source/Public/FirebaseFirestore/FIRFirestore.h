@@ -28,6 +28,7 @@
 @class FIRTransaction;
 @class FIRTransactionOptions;
 @class FIRWriteBatch;
+@class FIRPersistentCacheIndexManager;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -43,24 +44,52 @@ NS_SWIFT_NAME(Firestore)
 - (instancetype)init __attribute__((unavailable("Use a static constructor method.")));
 
 /**
- * Creates, caches, and returns a `Firestore` using the default `FirebaseApp`. Each subsequent
- * invocation returns the same `Firestore` object.
+ * Creates, caches, and returns the default `Firestore` using the default `FirebaseApp`. Each
+ * subsequent invocation returns the same `Firestore` object.
  *
- * @return The `Firestore` instance.
+ * @return The default `Firestore` instance.
  */
 + (instancetype)firestore NS_SWIFT_NAME(firestore());
 
 /**
- * Creates, caches, and returns a `Firestore` object for the specified _app_. Each subsequent
- * invocation returns the same `Firestore` object.
+ * Creates, caches, and returns the default `Firestore` object for the specified _app_. Each
+ * subsequent invocation returns the same `Firestore` object.
  *
  * @param app The `FirebaseApp` instance to use for authentication and as a source of the Google
  * Cloud Project ID for your Firestore Database. If you want the default instance, you should
  * explicitly set it to `FirebaseApp.app()`.
  *
- * @return The `Firestore` instance.
+ * @return The default `Firestore` instance.
  */
 + (instancetype)firestoreForApp:(FIRApp *)app NS_SWIFT_NAME(firestore(app:));
+
+/**
+ * This method is in preview. API signature and functionality are subject to change.
+ *
+ * Creates, caches, and returns named `Firestore` object for the specified `FirebaseApp`. Each
+ * subsequent invocation returns the same `Firestore` object.
+ *
+ * @param app The `FirebaseApp` instance to use for authentication and as a source of the Google
+ * Cloud Project ID for your Firestore Database. If you want the default instance, you should
+ * explicitly set it to `FirebaseApp.app()`.
+ * @param database The database name.
+ *
+ * @return The named `Firestore` instance.
+ */
++ (instancetype)firestoreForApp:(FIRApp *)app
+                       database:(NSString *)database NS_SWIFT_NAME(firestore(app:database:));
+
+/**
+ * This method is in preview. API signature and functionality are subject to change.
+ *
+ * Creates, caches, and returns named `Firestore` object for the default _app_. Each subsequent
+ * invocation returns the same `Firestore` object.
+ *
+ * @param database The database name.
+ *
+ * @return The named `Firestore` instance.
+ */
++ (instancetype)firestoreForDatabase:(NSString *)database NS_SWIFT_NAME(firestore(database:));
 
 /**
  * Custom settings used to configure this `Firestore` object.
@@ -71,6 +100,70 @@ NS_SWIFT_NAME(Firestore)
  * The Firebase App associated with this Firestore instance.
  */
 @property(strong, nonatomic, readonly) FIRApp *app;
+
+#pragma mark - Configure FieldIndexes
+
+/**
+ * A PersistentCacheIndexManager which you can config persistent cache indexes used for
+ * local query execution.
+ */
+@property(nonatomic, readonly, nullable)
+    FIRPersistentCacheIndexManager *persistentCacheIndexManager;
+
+/**
+ * NOTE: This preview method will be deprecated in a future major release. Consider using
+ * `PersistentCacheIndexManager.enableIndexAutoCreation()` to let the SDK decide whether to create
+ * cache indexes for queries running locally.
+ *
+ * Configures indexing for local query execution. Any previous index configuration is overridden.
+ *
+ * The index entries themselves are created asynchronously. You can continue to use queries
+ * that require indexing even if the indices are not yet available. Query execution will
+ * automatically start using the index once the index entries have been written.
+ *
+ * The method accepts the JSON format exported by the Firebase CLI (`firebase
+ * firestore:indexes`). If the JSON format is invalid, the completion block will be
+ * invoked with an NSError.
+ *
+ * @param json The JSON format exported by the Firebase CLI.
+ * @param completion A block to execute when setting is in a final state. The `error` parameter
+ * will be set if the block is invoked due to an error.
+ */
+- (void)setIndexConfigurationFromJSON:(NSString *)json
+                           completion:(nullable void (^)(NSError *_Nullable error))completion
+    NS_SWIFT_NAME(setIndexConfiguration(_:completion:)) DEPRECATED_MSG_ATTRIBUTE(
+        "Instead of creating cache indexes manually, consider using "
+        "`PersistentCacheIndexManager.enableIndexAutoCreation()` to let the SDK decide whether to "
+        "create cache indexes for queries running locally.");
+
+/**
+ * NOTE: This preview method will be deprecated in a future major release. Consider using
+ * `PersistentCacheIndexManager.enableIndexAutoCreation()` to let the SDK decide whether to create
+ * cache indexes for queries running locally.
+ *
+ * Configures indexing for local query execution. Any previous index configuration is overridden.
+ *
+ * The index entries themselves are created asynchronously. You can continue to use queries
+ * that require indexing even if the indices are not yet available. Query execution will
+ * automatically start using the index once the index entries have been written.
+ *
+ * Indexes are only supported with LevelDB persistence. Invoke `set_persistence_enabled(true)`
+ * before setting an index configuration. If LevelDB is not enabled, any index configuration
+ * will be rejected.
+ *
+ * The method accepts the JSON format exported by the Firebase CLI (`firebase
+ * firestore:indexes`). If the JSON format is invalid, this method ignores the changes.
+ *
+ * @param stream An input stream from which the configuration can be read.
+ * @param completion A block to execute when setting is in a final state. The `error` parameter
+ * will be set if the block is invoked due to an error.
+ */
+- (void)setIndexConfigurationFromStream:(NSInputStream *)stream
+                             completion:(nullable void (^)(NSError *_Nullable error))completion
+    NS_SWIFT_NAME(setIndexConfiguration(_:completion:)) DEPRECATED_MSG_ATTRIBUTE(
+        "Instead of creating cache indexes manually, consider using "
+        "`PersistentCacheIndexManager.enableIndexAutoCreation()` to let the SDK decide whether to "
+        "create cache indexes for queries running locally.");
 
 #pragma mark - Collections and Documents
 

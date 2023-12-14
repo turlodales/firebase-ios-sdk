@@ -1,6 +1,100 @@
-# Unreleased
+# 10.19.0
+- [fixed] Made an optimization to the synchronization logic for resumed queries
+  to only re-download locally-cached documents that are known to be out-of-sync. (#12044)
+
+# 10.18.0
+- [fixed] Fix Firestore build for visionOS on Xcode 15.1. (#12023)
+
+# 10.17.0
+- [feature] Add support for sum and average aggregate queries.
+- [feature] The `FirebaseFirestore` module now contains Firebase Firestore's
+  Swift-only APIs that were previously only available via the
+  `FirebaseFirestoreSwift` extension SDK. See the
+  `FirebaseFirestoreSwift` release note from this release for more details.
+
+# 10.16.0
+- [fixed] Fixed an issue where Firestore's binary SwiftPM distribution would
+  not link properly when building a target for testing. This issue affected
+  Xcode 15 Beta 5 and later (#11656).
+- [fixed] Downgrade the CocoaPods grpc dependency back to 1.44.0 (from 1.50.1)
+  to fix a crash on iOS 12 devices that was introduced in the Firebase Apple SDK
+  10.10.0 when the grpc dependency was upgraded (#11509).
+
+# 10.15.0
+- [feature] Add the option to allow the SDK to create cache indexes automatically to
+  improve query execution locally. (#11596)
+
+# 10.12.0
+- [feature] Implemented an optimization in the local cache synchronization logic
+  that reduces the number of billed document reads when documents were deleted
+  on the server while the client was not actively listening to the query
+  (e.g. while the client was offline). (#11457)
+- [added] Developers using Firestore on **visionOS** must use a source
+  Firestore distribution rather than the default binary distribution. To do
+  this, quit Xcode and open the desired project from the command line
+  with the `FIREBASE_SOURCE_FIRESTORE` environment variable:
+  ```
+  open --env FIREBASE_SOURCE_FIRESTORE /path/to/project.xcodeproj
+  ```
+  To go back to using the binary distribution of Firestore, quit Xcode and
+  open Xcode like normal, without the environment variable. (#11492)
+
+# 10.11.0
+- [feature] Expose MultiDb API for public preview. (#10465)
+- [fixed] Fixed a compilation warning related to integer casting. (#11332)
+- [fixed] Allow initializing FIRLocalCacheSettings with unlimited size. (#11405)
+
+# 10.9.0
+- [feature] Add new cache config API to customize SDK cache settings.
+- [feature] Add LRU garbage collector as an option to memory cache.
+
+# 10.8.0
+- [feature] Change Firestore's Swift Package Manager distribution from source
+  to binary to reduce the time it takes to add the Firebase package and to
+  build the Firestore SDK (#6564).
+- [fixed] Fixed SSL symbol collision issue affecting SwiftPM users. (#6869)
+
+# 10.7.0
+- [feature] Add support for disjunctions in queries (`OR` queries).
+- [fixed] Fixed stack overflow caused by deeply nested server timestamps.
+
+# 10.6.0
+- [fixed] Fix a potential high memory usage issue.
+
+# 10.5.0
+- [fixed] Add @discardableResult to addDocument API for easy handling unused return value. (#10640)
+
+# 10.4.0
+- [fixed] Fix an issue that stops some performance optimization being applied (#10579).
+
+# 10.3.0
+- [feature] Add MultiDb support.
+- [fixed] Fix App crashed when there are nested data structures inside IN
+  Filter (#10507).
+
+# 10.2.0
+- [fixed] Fix FAILED_PRECONDITION when writing to a deleted document in a
+  transaction (#10431).
+- [fixed] Fixed data race in credentials provider (#10393).
+- [fixed] Fix Firestore failing to raise initial snapshot from empty local cache
+  result (#10437).
+
+# 10.0.0
+- [feature] Added `Query.count()`, which fetches the number of documents in the
+  result set without actually downloading the documents (#10246).
+- [fixed] Fixed compiler warning about `@param comparator` (#10226).
+
+# 9.6.0
+- [added] Expose client side indexing feature with `FIRFirestore.setIndexConfigurationFromJSON` and
+  `FIRFirestore.setIndexConfigurationFromStream` (#10090).
+- [fixed] Fixed high CPU usage whenever Firestore was in use (#10168).
+
+# 9.5.0
 - [fixed] Fixed an intermittent crash if `ListenerRegistration::Remove()` was
   invoked concurrently (#10065).
+- [fixed] Fixed a crash if multiple large write batches with overlapping
+  documents were executed where at least one batch performed a delete operation
+  (#9965).
 
 # 9.4.0
 - [fixed] Fixed a crash during app start (#9985, #10018).

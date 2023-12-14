@@ -31,9 +31,8 @@ namespace local {
 
 class LocalDocumentsView;
 class IndexManager;
+class QueryContext;
 
-// TODO(cheryllin): Add function name into documentation which configures index
-// (e.g. setIndexConfiguration).
 /**
  * Firestore queries can be executed in three modes. The Query Engine determines
  * what mode to use based on what data is persisted. The mode only determines
@@ -41,9 +40,10 @@ class IndexManager;
  * implementations.
  *
  * The Query engine will use indexed-based execution if a user has configured
- * any index that can be used to execute query. Otherwise, the engine will try
- * to optimize the query by re-using a previously persisted query result. If
- * that is not possible, the query will be executed via a full collection scan.
+ * any index that can be used to execute query (via SetIndexConfiguration in
+ * Firestore/core/src/api/firestore.cc). Otherwise, the engine will try to
+ * optimize the query by re-using a previously persisted query result. If that
+ * is not possible, the query will be executed via a full collection scan.
  *
  * Index-based execution is the default when available. The query engine
  * supports partial indexed execution and merges the result from the index
@@ -79,19 +79,24 @@ class QueryEngine {
       const model::SnapshotVersion& last_limbo_free_snapshot_version,
       const model::DocumentKeySet& remote_keys) const;
 
+  void SetIndexAutoCreationEnabled(bool is_enabled);
+
  private:
+  friend class IndexManagerTest;
+  friend class LocalStoreTestBase;
+
   /**
    * Performs an indexed query that evaluates the query based on a collection's
    * persisted index values. Returns nullopt if an index is not available.
    */
-  const absl::optional<model::DocumentMap> PerformQueryUsingIndex(
+  absl::optional<model::DocumentMap> PerformQueryUsingIndex(
       const core::Query& query) const;
 
   /**
    * Performs a query based on the target's persisted query mapping. Returns
    * nullopt if the mapping is not available or cannot be used.
    */
-  const absl::optional<model::DocumentMap> PerformQueryUsingRemoteKeys(
+  absl::optional<model::DocumentMap> PerformQueryUsingRemoteKeys(
       const core::Query& query,
       const model::DocumentKeySet& remote_keys,
       const model::SnapshotVersion& last_limbo_free_snapshot_version) const;
@@ -119,7 +124,7 @@ class QueryEngine {
       const model::SnapshotVersion& limbo_free_snapshot_version) const;
 
   const model::DocumentMap ExecuteFullCollectionScan(
-      const core::Query& query) const;
+      const core::Query& query, absl::optional<QueryContext>& context) const;
 
   /**
    * Combines the results from an indexed execution with the remaining documents
@@ -130,9 +135,31 @@ class QueryEngine {
       const core::Query& query,
       const model::IndexOffset& offset) const;
 
+  void CreateCacheIndexes(const core::Query& query,
+                          const QueryContext& context,
+                          size_t result_size) const;
+
   LocalDocumentsView* local_documents_view_ = nullptr;
 
   IndexManager* index_manager_ = nullptr;
+
+  bool index_auto_creation_enabled_ = false;
+
+  /** SDK only decides whether it should create index when collection size is
+   * larger than this. */
+  size_t index_auto_creation_min_collection_size_;
+
+  double relative_index_read_cost_per_document_;
+
+  // For testing
+  void SetIndexAutoCreationMinCollectionSize(size_t new_min) {
+    index_auto_creation_min_collection_size_ = new_min;
+  }
+
+  // For testing
+  void SetRelativeIndexReadCostPerDocument(double new_cost) {
+    relative_index_read_cost_per_document_ = new_cost;
+  }
 };
 
 }  // namespace local

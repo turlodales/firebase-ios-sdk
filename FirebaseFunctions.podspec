@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'FirebaseFunctions'
-  s.version          = '9.4.0'
+  s.version          = '10.20.0'
   s.summary          = 'Cloud Functions for Firebase'
 
   s.description      = <<-DESC
@@ -18,9 +18,9 @@ Cloud Functions for Firebase.
 
   s.swift_version    = '5.3'
 
-  ios_deployment_target = '10.0'
-  osx_deployment_target = '10.12'
-  tvos_deployment_target = '10.0'
+  ios_deployment_target = '11.0'
+  osx_deployment_target = '10.13'
+  tvos_deployment_target = '12.0'
   watchos_deployment_target = '6.0'
 
   s.ios.deployment_target = ios_deployment_target
@@ -37,13 +37,13 @@ Cloud Functions for Firebase.
     'FirebaseFunctions/Sources/**/*.swift',
   ]
 
-  s.dependency 'FirebaseCore', '~> 9.0'
-  s.dependency 'FirebaseCoreExtension', '~> 9.0'
-  s.dependency 'FirebaseAppCheckInterop', '~> 9.0'
-  s.dependency 'FirebaseAuthInterop', '~> 9.0'
-  s.dependency 'FirebaseMessagingInterop', '~> 9.0'
-  s.dependency 'FirebaseSharedSwift', '~> 9.0'
-  s.dependency 'GTMSessionFetcher/Core', '>= 1.7', '< 3.0'
+  s.dependency 'FirebaseCore', '~> 10.0'
+  s.dependency 'FirebaseCoreExtension', '~> 10.0'
+  s.dependency 'FirebaseAppCheckInterop', '~> 10.10'
+  s.dependency 'FirebaseAuthInterop', '~> 10.0'
+  s.dependency 'FirebaseMessagingInterop', '~> 10.0'
+  s.dependency 'FirebaseSharedSwift', '~> 10.0'
+  s.dependency 'GTMSessionFetcher/Core', '>= 2.1', '< 4.0'
 
   s.test_spec 'objc' do |objc_tests|
     objc_tests.platforms = {
@@ -54,6 +54,7 @@ Cloud Functions for Firebase.
     objc_tests.source_files = [
       'FirebaseFunctions/Tests/ObjCIntegration/ObjC*'
     ]
+    objc_tests.requires_app_host = true
   end
 
   s.test_spec 'integration' do |int_tests|
@@ -63,5 +64,6 @@ Cloud Functions for Firebase.
       :tvos => tvos_deployment_target
     }
     int_tests.source_files = 'FirebaseFunctions/Tests/Integration/*.swift'
+    int_tests.requires_app_host = true
   end
 end

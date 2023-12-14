@@ -42,7 +42,6 @@ import XCTest
                      metadata.customMetadata!["shinkansen"])
     }
 
-    // TODO: update this test to use Swift error codes.
     func testDelete() async throws {
       let objectLocation = "ios/public/fileToDelete"
       let ref = storage.reference(withPath: objectLocation)
@@ -51,11 +50,19 @@ import XCTest
       XCTAssertNotNil(result)
       _ = try await ref.delete()
       // Next delete should fail and verify the first delete succeeded.
+      var caughtError = false
       do {
         _ = try await ref.delete()
       } catch {
-        XCTAssertEqual((error as NSError).code, StorageErrorCode.objectNotFound.rawValue)
+        caughtError = true
+        let nsError = error as NSError
+        XCTAssertEqual(nsError.code, StorageErrorCode.objectNotFound.rawValue)
+        XCTAssertEqual(nsError.userInfo["ResponseErrorCode"] as? Int, 404)
+        let underlyingError = try XCTUnwrap(nsError.userInfo[NSUnderlyingErrorKey] as? NSError)
+        XCTAssertEqual(underlyingError.code, 404)
+        XCTAssertEqual(underlyingError.domain, "com.google.HTTPStatus")
       }
+      XCTAssertTrue(caughtError)
     }
 
     func testDeleteAfterPut() async throws {
@@ -120,9 +127,6 @@ import XCTest
       }
     }
 
-    // TODO: Update this function when the task handle APIs are updated for the new Swift Concurrency.
-    func testSimplePutFile() throws {}
-
     func testAttemptToUploadDirectoryShouldFail() async throws {
       // This `.numbers` file is actually a directory.
       let fileName = "HomeImprovement.numbers"
@@ -133,8 +137,11 @@ import XCTest
       do {
         _ = try await ref.putFileAsync(from: fileURL)
         XCTFail("Unexpected success from putFile of a directory")
-      } catch StorageError.unknown {
-        XCTAssertTrue(true)
+      } catch let StorageError.unknown(reason) {
+        XCTAssertTrue(reason.starts(with: "File at URL:"))
+        XCTAssertTrue(reason.hasSuffix(
+          "is not reachable. Ensure file URL is not a directory, symbolic link, or invalid url."
+        ))
       } catch {
         XCTFail("error failed to convert to StorageError.unknown")
       }
@@ -169,6 +176,25 @@ import XCTest
       try data.write(to: fileURL, options: .atomicWrite)
       let result = try await ref.putFileAsync(from: fileURL)
       XCTAssertNotNil(result)
+    }
+
+    func testSimplePutFileWithAsyncProgress() async throws {
+      var checkedProgress = false
+      let ref = storage.reference(withPath: "ios/public/testSimplePutFile")
+      let data = try XCTUnwrap("Hello Swift World".data(using: .utf8), "Data construction failed")
+      let tmpDirURL = URL(fileURLWithPath: NSTemporaryDirectory())
+      let fileURL = tmpDirURL.appendingPathComponent("hello.txt")
+      try data.write(to: fileURL, options: .atomicWrite)
+      var uploadedBytes: Int64 = -1
+      let successMetadata = try await ref.putFileAsync(from: fileURL) { progress in
+        if let completed = progress?.completedUnitCount {
+          checkedProgress = true
+          XCTAssertGreaterThanOrEqual(completed, uploadedBytes)
+          uploadedBytes = completed
+        }
+      }
+      XCTAssertEqual(successMetadata.size, 17)
+      XCTAssertTrue(checkedProgress)
     }
 
     func testSimpleGetData() async throws {
@@ -247,7 +273,6 @@ import XCTest
         _ = try await ref.putDataAsync(data)
         let task = ref.write(toFile: fileURL)
 
-        // TODO: Update to use Swift Tasks
         task.observe(StorageTaskStatus.success) { snapshot in
           do {
             let stringData = try String(contentsOf: fileURL, encoding: .utf8)
@@ -261,17 +286,38 @@ import XCTest
 
         task.observe(StorageTaskStatus.progress) { snapshot in
           XCTAssertNil(snapshot.error, "Error should be nil")
-          guard let progress = snapshot.progress else {
+          guard snapshot.progress != nil else {
             XCTFail("Missing progress")
             return
           }
-          print("\(progress.completedUnitCount) of \(progress.totalUnitCount)")
         }
         task.observe(StorageTaskStatus.failure) { snapshot in
           XCTAssertNil(snapshot.error, "Error should be nil")
         }
       }
       waitForExpectations()
+    }
+
+    func testSimpleGetFileWithAsyncProgressCallbackAPI() async throws {
+      var checkedProgress = false
+      let ref = storage.reference().child("ios/public/1mb")
+      let url = URL(fileURLWithPath: "\(NSTemporaryDirectory())/hello.txt")
+      let fileURL = url
+      var downloadedBytes: Int64 = 0
+      var resumeAtBytes = 256 * 1024
+      let successURL = try await ref.writeAsync(toFile: fileURL) { progress in
+        if let completed = progress?.completedUnitCount {
+          checkedProgress = true
+          XCTAssertGreaterThanOrEqual(completed, downloadedBytes)
+          downloadedBytes = completed
+          if completed > resumeAtBytes {
+            resumeAtBytes = Int.max
+          }
+        }
+      }
+      XCTAssertTrue(checkedProgress)
+      XCTAssertEqual(successURL, url)
+      XCTAssertEqual(resumeAtBytes, Int.max)
     }
 
     private func assertMetadata(actualMetadata: StorageMetadata,
@@ -344,7 +390,6 @@ import XCTest
       XCTAssertNil(listResult2.pageToken, "pageToken should be nil")
     }
 
-    // TODO: Update to Swift error codes.
     func testPagedListFilesError() async throws {
       let ref = storage.reference(withPath: "ios/public/list")
       do {

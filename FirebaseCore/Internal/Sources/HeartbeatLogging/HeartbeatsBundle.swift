@@ -19,21 +19,25 @@ protocol HeartbeatsPayloadConvertible {
   func makeHeartbeatsPayload() -> HeartbeatsPayload
 }
 
-/// A codable collection of heartbeats that has a fixed capacity and optimizations for storing heartbeats of
+/// A codable collection of heartbeats that has a fixed capacity and optimizations for storing
+/// heartbeats of
 /// multiple time periods.
 struct HeartbeatsBundle: Codable, HeartbeatsPayloadConvertible {
   /// The maximum number of heartbeats that can be stored in the buffer.
   let capacity: Int
   /// A cache used for keeping track of the last heartbeat date recorded for a given time period.
   ///
-  /// The cache contains the last added date for each time period. The reason only the date is cached is
-  /// because it's the only piece of information that should be used by clients to determine whether or not
+  /// The cache contains the last added date for each time period. The reason only the date is
+  /// cached is
+  /// because it's the only piece of information that should be used by clients to determine whether
+  /// or not
   /// to append a new heartbeat.
   private(set) var lastAddedHeartbeatDates: [TimePeriod: Date]
   /// A ring buffer of heartbeats.
   private var buffer: RingBuffer<Heartbeat>
 
-  /// A default cache provider that provides a dictionary of all time periods mapping to a default date.
+  /// A default cache provider that provides a dictionary of all time periods mapping to a default
+  /// date.
   static var cacheProvider: () -> [TimePeriod: Date] {
     let timePeriodsAndDates = TimePeriod.allCases.map { ($0, Date.distantPast) }
     return { Dictionary(uniqueKeysWithValues: timePeriodsAndDates) }
@@ -72,7 +76,7 @@ struct HeartbeatsBundle: Codable, HeartbeatsPayloadConvertible {
         lastAddedHeartbeatDates[$0] = heartbeat.date
       }
 
-    } catch let error as RingBufferError {
+    } catch let error as RingBuffer<Heartbeat>.Error {
       // A ring buffer error occurred while pushing to the buffer so the bundle
       // is reset.
       self = HeartbeatsBundle(capacity: capacity)

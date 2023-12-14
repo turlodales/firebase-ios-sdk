@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import Foundation
 import Combine
-import XCTest
 @testable import FirebaseStorage
+import Foundation
+import XCTest
 
 class StorageReferenceTests: XCTestCase {
   override class func setUp() {
@@ -56,7 +56,7 @@ class StorageReferenceTests: XCTestCase {
       .sink { completion in
         if case let .failure(error) = completion {
           putFileExpectation.fulfill()
-          XCTAssertEqual("unknown", String(describing: error))
+          XCTAssertTrue(String(describing: error).starts(with: "unknown"))
         }
       } receiveValue: { metadata in
         XCTFail("💥 result unexpected")

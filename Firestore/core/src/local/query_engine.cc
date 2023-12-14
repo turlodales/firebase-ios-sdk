@@ -17,11 +17,11 @@
 #include "Firestore/core/src/local/query_engine.h"
 
 #include <utility>
-#include <vector>
 
 #include "Firestore/core/src/core/query.h"
 #include "Firestore/core/src/core/target.h"
 #include "Firestore/core/src/local/local_documents_view.h"
+#include "Firestore/core/src/local/query_context.h"
 #include "Firestore/core/src/model/document.h"
 #include "Firestore/core/src/model/document_set.h"
 #include "Firestore/core/src/model/mutable_document.h"
@@ -31,6 +31,20 @@
 namespace firebase {
 namespace firestore {
 namespace local {
+
+namespace {
+
+static const int kDefaultIndexAutoCreationMinCollectionSize = 100;
+
+/**
+ * This cost represents the evaluation result of (([index, docKey] + [docKey,
+ * docContent]) per document in the result set) / ([docKey, docContent] per
+ * documents in full collection scan) coming from experiment
+ * https://github.com/firebase/firebase-ios-sdk/pull/11716.
+ */
+
+static const double KDefaultRelativeIndexReadCostPerDocument = 3.4;
+}  // namespace
 
 using core::LimitType;
 using core::Query;
@@ -44,6 +58,10 @@ using model::SnapshotVersion;
 void QueryEngine::Initialize(LocalDocumentsView* local_documents) {
   local_documents_view_ = local_documents;
   index_manager_ = local_documents->index_manager();
+  index_auto_creation_min_collection_size_ =
+      kDefaultIndexAutoCreationMinCollectionSize;
+  relative_index_read_cost_per_document_ =
+      KDefaultRelativeIndexReadCostPerDocument;
 }
 
 const DocumentMap QueryEngine::GetDocumentsMatchingQuery(
@@ -65,10 +83,47 @@ const DocumentMap QueryEngine::GetDocumentsMatchingQuery(
     return key_result.value();
   }
 
-  return ExecuteFullCollectionScan(query);
+  absl::optional<QueryContext> context = QueryContext();
+  auto full_scan_result = ExecuteFullCollectionScan(query, context);
+  if (index_auto_creation_enabled_) {
+    CreateCacheIndexes(query, context.value(), full_scan_result.size());
+  }
+  return full_scan_result;
 }
 
-const absl::optional<DocumentMap> QueryEngine::PerformQueryUsingIndex(
+void QueryEngine::CreateCacheIndexes(const core::Query& query,
+                                     const QueryContext& context,
+                                     size_t result_size) const {
+  if (context.GetDocumentReadCount() <
+      index_auto_creation_min_collection_size_) {
+    LOG_DEBUG(
+        "SDK will not create cache indexes for query: %s, since it only "
+        "creates cache indexes for collection contains more than or equal to "
+        "%s documents.",
+        query.ToString(), index_auto_creation_min_collection_size_);
+    return;
+  }
+
+  LOG_DEBUG(
+      "Query: %s, scans %s local documents and returns %s documents as "
+      "results.",
+      query.ToString(), context.GetDocumentReadCount(), result_size);
+
+  if (context.GetDocumentReadCount() >
+      relative_index_read_cost_per_document_ * result_size) {
+    index_manager_->CreateTargetIndexes(query.ToTarget());
+    LOG_DEBUG(
+        "The SDK decides to create cache indexes for query: %s, as using cache "
+        "indexes may help improve performance.",
+        query.ToString());
+  }
+}
+
+void QueryEngine::SetIndexAutoCreationEnabled(bool is_enabled) {
+  index_auto_creation_enabled_ = is_enabled;
+}
+
+absl::optional<DocumentMap> QueryEngine::PerformQueryUsingIndex(
     const Query& query) const {
   if (query.MatchesAllDocuments()) {
     // Don't use indexes for queries that can be executed by scanning the
@@ -128,7 +183,7 @@ const absl::optional<DocumentMap> QueryEngine::PerformQueryUsingIndex(
   return AppendRemainingResults(previous_results, query, offset);
 }
 
-const absl::optional<DocumentMap> QueryEngine::PerformQueryUsingRemoteKeys(
+absl::optional<DocumentMap> QueryEngine::PerformQueryUsingRemoteKeys(
     const Query& query,
     const DocumentKeySet& remote_keys,
     const SnapshotVersion& last_limbo_free_snapshot_version) const {
@@ -218,11 +273,11 @@ bool QueryEngine::NeedsRefill(
 }
 
 const DocumentMap QueryEngine::ExecuteFullCollectionScan(
-    const Query& query) const {
+    const Query& query, absl::optional<QueryContext>& context) const {
   LOG_DEBUG("Using full collection scan to execute query: %s",
             query.ToString());
   return local_documents_view_->GetDocumentsMatchingQuery(
-      query, model::IndexOffset::None());
+      query, model::IndexOffset::None(), context);
 }
 
 const DocumentMap QueryEngine::AppendRemainingResults(

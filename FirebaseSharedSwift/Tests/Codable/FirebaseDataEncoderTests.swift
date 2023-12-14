@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import Foundation
 import FirebaseSharedSwift
+import Foundation
 import XCTest
 
 class FirebaseFirebaseDataEncoderTests: XCTestCase {
@@ -268,7 +268,7 @@ class FirebaseFirebaseDataEncoderTests: XCTestCase {
             "weight": 79.2,
           ],
         ],
-      ],
+      ] as [String: Any],
       "id": 123,
     ] as [String: Any]
 
@@ -383,7 +383,7 @@ class FirebaseFirebaseDataEncoderTests: XCTestCase {
   func testClassHierarchy() {
     assertThat(SubModel(power: 100, name: "name", seconds: 123_456_789.123))
       .roundTrips(to: [
-        "super": ["superPower": 100, "superName": "name"],
+        "super": ["superPower": 100, "superName": "name"] as [String: Any],
         "timestamp": 123_456_789.123,
       ])
   }

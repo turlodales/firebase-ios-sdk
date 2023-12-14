@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import Foundation
 import Firebase
-import FirebaseCore
-import FirebaseAuth
 import FirebaseABTesting
 import FirebaseAppCheck
+import FirebaseAuth
+import FirebaseCore
+import Foundation
 #if os(iOS) && !targetEnvironment(macCatalyst)
   import FirebaseAppDistribution
 #endif
@@ -27,17 +27,17 @@ import FirebaseDynamicLinks
 import FirebaseFirestore
 import FirebaseFirestoreSwift
 import FirebaseFunctions
-#if (os(iOS) || os(tvOS)) && !targetEnvironment(macCatalyst)
-  import FirebaseInAppMessaging
-  @testable import FirebaseInAppMessagingSwift
-  import SwiftUI
-#endif
 import FirebaseInstallations
 import FirebaseMessaging
 #if (os(iOS) && !targetEnvironment(macCatalyst)) || os(tvOS)
   import FirebasePerformance
+
+  @testable import FirebaseInAppMessaging
+  import FirebaseInAppMessagingSwift
+  import SwiftUI
 #endif
 import FirebaseRemoteConfig
+import FirebaseSessions
 import FirebaseStorage
 import GoogleDataTransport
 import GoogleUtilities_AppDelegateSwizzler
@@ -75,7 +75,7 @@ class importTest: XCTestCase {
 
     let versionParts = FirebaseVersion().split(separator: ".")
     XCTAssert(versionParts.count == 3)
-    XCTAssertEqual(Int(versionParts[0]), 9)
+    XCTAssertEqual(Int(versionParts[0]), 10)
     XCTAssertNotNil(Int(versionParts[1]))
     XCTAssertNotNil(Int(versionParts[2]))
 
